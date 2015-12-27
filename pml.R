@@ -82,4 +82,4 @@ confMatrix <- confusionMatrix(crossValSubSet$classe, prediction)
 accuracy <- confMatrix$overall[1]
 
 # Finaly apply the model to the testing Set
-predict(modFit_sub, testingSet)
+predict(model, testingSet)
