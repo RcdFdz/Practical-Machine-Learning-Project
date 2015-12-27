@@ -1,0 +1,183 @@
+---
+title : "Practical Machine Learning Project"
+author: Ricardo Fernandez
+date  : December 26th 2015
+output: html_document
+---
+
+# Summary
+The aim of this report is to predict the manner in which an athlete performed an
+exercise. This is the `classe` variable find in the training set. 
+
+The data for the project can be found at [Group Ware](http://groupware.les.inf.puc-rio.br/har):
+
+* [Training Set](http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+* [Test Set](http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+# Data Processing
+
+During the project will be need to work with `caret` and `corrplot` libraries, 
+ensure that you have them already installed.
+```{r, message=FALSE}
+library(caret)
+library(corrplot)
+```
+
+Moreover in order to be able to reproduce all the process and obtain the same
+results here presents will be necessary to set the default seed:
+```{r} 
+set.seed(12345)
+```
+
+## Loading Data
+The code blow check for the training and testing datasets, in case they do not
+exist in the current working directory the date is downloaded and loaded. Otherwise 
+is just loaded.
+```{r}
+if (!file.exists("pml-training.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+}
+if (!file.exists("pml-testing.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+}
+
+trainingSet <- read.csv("pml-training.csv", header=TRUE, na.strings=c("", "NA", "NULL"))
+testingSet<- read.csv("pml-testing.csv", header=TRUE, na.strings=c("", "NA", "NULL"))
+```
+
+## Cleaning Data
+Before do any cleaning it is necessary to check the data structure in order to
+take the proper decisions.
+
+First we check the size of both sets, and the structure of the training set.
+
+```{r}
+dim(trainingSet)
+dim(testingSet)
+```
+
+As we can see above both sets contain 160 variables, 19622 observations for
+the training set and 20 observations for the test set.
+```{r, eval=FALSE}
+str(trainingSet)
+```
+
+From the output of the `str()` (not shown above because of the amount of data) we
+observe that there are several columns with quite a lot NAs values which do not 
+add information to the training set.
+
+Since not the complete column contains NA values we define a threshold, in our case
+we defined `0.95`, so all columns with less than 95% of the values informed will
+be deleted.
+```{r}
+threshold = 0.95
+trainingNoNA <- trainingSet[, (nrow(trainingSet)-colSums(is.na(trainingSet)))/nrow(trainingSet) > threshold]
+
+dim(trainingNoNA)
+```
+
+We reduce the training set from 160 variables to 60 by deleting all the variables
+with these than 95% of the variables informed.
+
+Since the dataset is not time dependent all the time-series values are useless and can be
+removed also.
+
+```{r}
+trainingClean <- trainingNoNA[,-c(1:7)]
+dim(trainingClean)
+```
+
+Finally the dataset has been reduced to 53 variables.
+
+# Modeling
+
+Following we proceed to split our `trainingClean` data in two sets:
+
+* Cross-Validation set 30% of the data.
+* Training set 70% of the data.
+
+```{r}
+triningPartition <- createDataPartition(trainingClean$classe, p = 0.7, list=FALSE)
+trainSubSet <- trainingClean[triningPartition,]
+crossValSubSet <- trainingClean[-triningPartition,]
+```
+
+The aim of this split is to obtain the model by using the `trainSubSet` and 
+validate it accuracy in the `crossValSubSet`.
+
+### Correlation Study
+
+For the model prediction we can exclude those highly correlated variables so they
+do not significant advantage to the prediction model. Following we can observe how
+the set correlates
+
+```{r}
+corMat <- cor(trainSubSet[,-dim(trainSubSet)[2]])
+corrplot(corMat, method = "square", type="lower", order="AOE", tl.cex = 0.7, 
+         tl.col="black", tl.srt = 45, diag = FALSE)
+```
+
+As we see above there are some variables that correlates, we will exclude those
+correlated variables with a correlation value higher than 0.8.
+```{r}
+highlyCor <- findCorrelation(corMat, cutoff = 0.8)
+trainNotCorr <- trainSubSet[,-highlyCor]
+```
+
+We will exclude the following variables:
+```{r, echo=FALSE}
+names(crossValSubSet)[highlyCor]
+```
+
+And obtained a final set of `r ncol(trainNotCorr)` predictors. The new correlation
+matrix:
+
+```{r}
+cormat <- cor(trainNotCorr[,-dim(trainNotCorr)[2]])
+corrplot(cormat, method = "square", type="lower", order="AOE", tl.cex = 0.7, 
+         tl.col="black", tl.srt = 45, diag = FALSE)
+```
+
+### Random Forest Model
+
+In order to reduce the overfitting and conserve the variance we choose to apply
+Random Forest training for obtain our model.
+```{r, cache=TRUE}
+model <- train(classe~., 
+                    method = "rf", 
+                    data=trainNotCorr, 
+                    trControl = trainControl(method = "cv"), importance=TRUE)
+```
+
+#### Predictors
+By using the `varImpPlot` to the `model$finalModel` as follow below we can observe
+the importance of the predictors from the model:
+
+```{r, cache=TRUE}
+varImpPlot(model$finalModel, main = "Predictors importance", pch = 20, cex = 0.8)
+```
+
+#### Predict Outcomes Using Validation Set
+Finally and before apply our model to the `testingSet` we can validate it with
+the `crossValSubSet`.
+```{r}
+prediction <- predict(model, crossValSubSet)
+```
+
+And check the accuracy and Out-Of-Sample error
+```{r}
+confMatrix <- confusionMatrix(crossValSubSet$classe, prediction)
+
+sum(diag(confMatrix$table))/sum(confMatrix$table)
+confMatrix$overall[1]
+```
+
+From the results we conclude an accuracy of `r confMatrix$overall[1]` and an Out-Of-Sample error
+of `r sum(diag(confMatrix$table))/sum(confMatrix$table)`.
+
+# Testing Set
+
+Finally the prediction for the 20 cases from the Testing Data Set:
+```{r}
+predict(model, testingSet)
+```
