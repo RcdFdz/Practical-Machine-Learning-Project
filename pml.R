@@ -42,7 +42,7 @@ crossValSubSet <- trainingClean[-triningPartition,]
 
 # Make a correlation matrix plot
 corMat <- cor(trainSubSet[,-dim(trainSubSet)[2]])
-corrplot(corMat, method = "square", type="lower", order="AOE", tl.cex = 0.6, 
+corrplot(corMat, method = "square", type="lower", order="AOE", tl.cex = 0.7, 
          tl.col="black", tl.srt = 45, diag = FALSE)
 
 # Remove higly correlated variables
@@ -56,7 +56,7 @@ ncol(trainNotCorr)
 
 # New correlation matrix plot with non correlated variables
 cormat <- cor(trainNotCorr[,-dim(trainNotCorr)[2]])
-corrplot(cormat, method = "square", type="lower", order="AOE", tl.cex = 0.6, 
+corrplot(cormat, method = "square", type="lower", order="AOE", tl.cex = 0.7, 
          tl.col="black", tl.srt = 45, diag = FALSE)
 
 # Model using random forest
@@ -70,7 +70,7 @@ print(model, digits = 3)
 # model$finalModel
 
 # Plot the Predictors importance
-varImpPlot(model$finalModel, main = "Predictors importance", pch = 20)
+varImpPlot(model$finalModel, main = "Predictors importance", pch = 20, cex = 0.8)
 
 # Predict outcomes using validation set
 prediction <- predict(model, crossValSubSet)

@@ -35,10 +35,12 @@ exist in the current working directory the date is downloaded and loaded. Otherw
 is just loaded.
 ```{r}
 if (!file.exists("pml-training.csv")) {
-  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+                destfile = "pml-training.csv")
 }
 if (!file.exists("pml-testing.csv")) {
-  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+                destfile = "pml-testing.csv")
 }
 
 trainingSet <- read.csv("pml-training.csv", header=TRUE, na.strings=c("", "NA", "NULL"))
